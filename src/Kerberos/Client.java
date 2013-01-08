@@ -31,19 +31,20 @@ public class Client extends Object {
 	public boolean login(String userName, char[] password) {
 		String tgsName = "myTGS"; // nicht schoen!
 		currentUser = userName;
+		long nonce;
 		TicketResponse ticketResponse = myKDC.requestTGSTicket(currentUser,
-				tgsName, generateNonce());
+				tgsName, nonce = generateNonce());
 
 		if (ticketResponse != null) { // TGS-Name beim KDC bekannt
 			long passwd = generateSimpleKeyForPassword(password);
-			if (ticketResponse.decrypt(passwd)) {
+			if (ticketResponse.decrypt(passwd) && nonce == ticketResponse.getNonce()) {
 				tgsSessionKey = ticketResponse.getSessionKey();
 				tgsTicket = ticketResponse.getResponseTicket();
 				tgsTicket.print();
 			}
 		}
-		// TODO : Passwort im Hauptspeicher loeschen
-
+		// Passwort im Hauptspeicher loeschen
+		Arrays.fill(password, ' ');
 		return (tgsTicket != null);
 	}
 
@@ -55,10 +56,11 @@ public class Client extends Object {
 				long currentTime = (new Date()).getTime();
 				Auth tgsAuth = new Auth(currentUser, currentTime);
 				tgsAuth.encrypt(tgsSessionKey);
+				long nonce;
 				TicketResponse ticketResponse = myKDC.requestServerTicket(
-						tgsTicket, tgsAuth, serverName, generateNonce());
+						tgsTicket, tgsAuth, serverName, nonce = generateNonce());
 				ticketResponse.print();
-				if (ticketResponse.decrypt(tgsSessionKey)) {
+				if (ticketResponse.decrypt(tgsSessionKey) && ticketResponse.getNonce() == nonce) {
 					serverTicket = ticketResponse.getResponseTicket();
 					serverSessionKey = ticketResponse.getSessionKey();
 				}
